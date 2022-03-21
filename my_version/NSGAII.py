@@ -10,22 +10,20 @@ import numpy as np
 
 class NSGAII:
     def __init__(self,
-                 fitness,
-                 D,
-                 XMAX,
-                 XMIN,
+                 benchmark,
                  P=100,
                  G=1000,
                  k=2,
                  min_problem=True):
-        self.fitness = fitness
-        self.D = D
         self.P = P
         self.G = G
-        self.XMAX = XMAX
-        self.XMIN = XMIN
         self.k = k
-        self.min_problem = min_problem
+        self.benchmark = benchmark
+        self.D = benchmark.D
+        self.fitness = benchmark.fitness
+        self.min_problem = benchmark.min_problem
+        self.XMAX = benchmark.XMAX
+        self.XMIN = benchmark.XMIN
 
         self.X_gbest = np.zeros([self.D])
         self.F_gbest = np.inf
@@ -53,7 +51,8 @@ class NSGAII:
                            [16.854, 37.275]])
         self.P = 10
         front_set = self.fast_nondominated_sort(self.F)
-        crowding_distance = self.calculate_crowding_distance(self.F, front_set)
+        crowding_distance = self.calculate_crowding_distance(self.F,
+                                                             front_set)
         return 0
 
 # %%
@@ -100,7 +99,9 @@ class NSGAII:
 
         return front_set
 
-    def dominates(self, x1_f, x2_f):
+    def dominates(self,
+                  x1_f,
+                  x2_f):
         if self.min_problem:
             and_condition = all(x1_f <= x2_f)
             or_condition = any(x1_f < x2_f)
@@ -110,7 +111,9 @@ class NSGAII:
         return and_condition and or_condition
 
 # %%
-    def calculate_crowding_distance(self, F, front_set):
+    def calculate_crowding_distance(self,
+                                    F,
+                                    front_set):
         crowding_distance = np.zeros(self.P)
         for front in front_set:
             front_size = len(front)
