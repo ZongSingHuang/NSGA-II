@@ -70,41 +70,44 @@ class NSGAII:
         return pd.DataFrame(X)
 
 # %%
-    def fast_nondominated_sort(self, X):
-        dominated_counter = np.zeros(self.P)
-        dominat_solutions = []
-        front_set = [[]]
-        rank_set = np.zeros(self.P) - 1
-        for x1_idx, x1_f in enumerate(F):
-            spam = []
-
-            for x2_idx, x2_f in enumerate(F):
+    def fast_nondominated_sort(self,
+                               X):
+        front = [[]]
+        F = X['F'].to_dict()
+        X['dominat_solutions'] = float('nan')
+        X['dominated_counter'] = float('nan')
+        X['rank'] = float('nan')
+        X = X.to_dict('records')
+        for x1_idx, x1_f in F.items():
+            dominat_solutions = []
+            dominated_counter = 0
+            for x2_idx, x2_f in F.items():
                 if self.dominates(x1_f, x2_f):
-                    spam.append(x2_idx)
+                    dominat_solutions.append(x2_idx)
                 elif self.dominates(x2_f, x1_f):
-                    dominated_counter[x1_idx] += 1
+                    dominated_counter += 1
                 else:
                     pass
-            dominat_solutions.append(spam)
+            X[x1_idx]['dominat_solutions'] = dominat_solutions
+            X[x1_idx]['dominated_counter'] = dominated_counter
 
-            if not dominated_counter[x1_idx]:
-                rank_set[x1_idx] = 0
-                front_set[0].append(x1_idx)
-        front_set[0] = np.array(front_set[0])
+            if not dominated_counter:
+                X[x1_idx]['rank'] = 0
+                front[0].append(x1_idx)
 
         i = 0
-        while len(front_set[i]):
+        while len(front[i]):
             spam = []
-            for master_idx in front_set[i]:
-                for slave_idx in dominat_solutions[master_idx]:
-                    dominated_counter[slave_idx] -= 1
-                    if not dominated_counter[slave_idx]:
-                        rank_set[slave_idx] = i + 1
+            for master_idx in front[i]:
+                for slave_idx in X[master_idx]['dominat_solutions']:
+                    X[slave_idx]['dominated_counter'] -= 1
+                    if not X[slave_idx]['dominated_counter']:
+                        X[slave_idx]['rank'] = i + 1
                         spam.append(slave_idx)
             i = i + 1
-            front_set.append(np.array(spam))
+            front.append(spam)
 
-        return front_set
+        return front
 
     def dominates(self,
                   x1_f,
