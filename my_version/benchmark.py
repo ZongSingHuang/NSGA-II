@@ -6,6 +6,7 @@ Created on Mon Mar 21 16:53:30 2022
 """
 
 import numpy as np
+import pandas as pd
 
 
 class sch:
@@ -16,7 +17,11 @@ class sch:
         self.min_problem = True
 
     def fitness(self, X):
-        f1 = X**2
-        f2 = (X - 2)**2
-        F = np.vstack([f1, f2]).T
-        return F
+        X['F'] = 0
+        X = X.to_dict('records')
+        for idx, val in enumerate(X):
+            f1 = val['X'] ** 2
+            f2 = (val['X'] - 2) ** 2
+            X[idx]['F'] = np.hstack([f1, f2])
+
+        return pd.DataFrame(X)

@@ -7,8 +7,6 @@ Created on Mon Mar 21 16:48:44 2022
 
 from NSGAII import NSGAII
 import benchmark
-import dimension
-import bound
 
 optimizer = NSGAII(benchmark=benchmark.sch(),
                    P=100,

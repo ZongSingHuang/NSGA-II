@@ -6,6 +6,7 @@ Created on Mon Mar 21 17:01:54 2022
 """
 
 import numpy as np
+import pandas as pd
 
 
 class NSGAII:
@@ -30,7 +31,7 @@ class NSGAII:
 
     def opt(self):
         self.X = self.initial_population()
-        self.F = self.fitness(self.X)
+        self.X = self.fitness(self.X)
         # self.F = np.array([[160, 83300],
         #                    [200, 28800],
         #                    [200, 86100],
@@ -50,20 +51,26 @@ class NSGAII:
                            [4.671, 17.317],
                            [16.854, 37.275]])
         self.P = 10
-        front_set = self.fast_nondominated_sort(self.F)
+        front_set = self.fast_nondominated_sort(self.X)
         crowding_distance = self.calculate_crowding_distance(self.F,
                                                              front_set)
         return 0
 
 # %%
     def initial_population(self):
-        X = np.random.uniform(low=self.XMIN,
-                              high=self.XMAX,
-                              size=self.P)
-        return X
+        X = []
+        # for i in range(self.P):
+        #     x = {'X': np.random.uniform(low=self.XMIN,
+        #                                 high=self.XMAX,
+        #                                 size=self.D)}
+        #     X.append(x)
+        for i in [-0.414, 0.467, 0.818, 1.735, 3.210, -1.272, -1.508, -1.832, -2.161, -4.105]:
+            x = {'X': np.array([i])}
+            X.append(x)
+        return pd.DataFrame(X)
 
 # %%
-    def fast_nondominated_sort(self, F):
+    def fast_nondominated_sort(self, X):
         dominated_counter = np.zeros(self.P)
         dominat_solutions = []
         front_set = [[]]
