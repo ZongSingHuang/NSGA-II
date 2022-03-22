@@ -14,6 +14,7 @@ class sch:
         self.XMAX = 55
         self.XMIN = -55
         self.D = 1
+        self.M = 2
         self.min_problem = True
 
     def fitness(self, X):
