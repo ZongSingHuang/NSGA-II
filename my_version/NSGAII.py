@@ -14,11 +14,13 @@ class NSGAII:
                  benchmark,
                  P=100,
                  G=1000,
-                 k=2,
+                 tour_k=2,
+                 tour_prob=0.9,
                  min_problem=True):
         self.P = P
         self.G = G
-        self.k = k
+        self.tour_k = tour_k
+        self.tour_prob = tour_prob
         self.benchmark = benchmark
         self.D = benchmark.D
         self.fitness = benchmark.fitness
@@ -36,6 +38,8 @@ class NSGAII:
         self.X, front_set = self.fast_nondominated_sort(self.X)
         self.X = self.calculate_crowding_distance(self.X,
                                                   front_set)
+        self.Xc = self.create_children(self.X,
+                                       front_set)
         return 0
 
 # %%
@@ -53,6 +57,23 @@ class NSGAII:
             X.append(x)
         self.P = 10
         return pd.DataFrame(X)
+
+    def tournament_selection(self, X):
+        participants = np.random.choice(self.P,
+                                        size=self.tour_k,
+                                        replace=False)
+        best = None
+        for _, participant in X.loc[participants].iterrows():
+            r = np.random.uniform()
+            if (best is None) or (self.crowding_operator(participant, best) and (r <= self.tour_prob)):
+                best = participant
+        return best
+
+    def crossover(self, p1, p2):
+        return 0
+
+    def mutation(self, c1):
+        return 0
 
 # %%
     def fast_nondominated_sort(self,
@@ -127,3 +148,26 @@ class NSGAII:
                         crowding_distance[sorted_idx[i]] += (sorted_F.loc[sorted_idx[i+1]] - sorted_F.loc[sorted_idx[i-1]]) / scale
         self.X['crowding_distance'] = crowding_distance
         return self.X
+
+    def crowding_operator(self, participant, best):
+        if (participant['rank'] < best['rank']) or ((participant['rank'] == best['rank']) and (participant['crowding_distance'] > best['crowding_distance'])):
+            return True
+        else:
+            return False
+
+# %%
+    def create_children(self,
+                        X,
+                        front_set):
+        children = pd.DataFrame()
+        while len(children) < self.P:
+            p1 = self.tournament_selection(X)
+            p2 = p1
+            while p1 == p2:
+                p2 = self.tournament_selection(X)
+            c1, c2 = self.crossover(p1, p2)
+            c1 = self.mutation(c1)
+            c2 = self.mutation(c2)
+            c1_f = self.fitness(c1)
+            c2_f = self.fitness(c2)
+        return 0

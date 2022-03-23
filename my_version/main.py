@@ -11,5 +11,5 @@ import benchmark
 optimizer = NSGAII(benchmark=benchmark.sch(),
                    P=100,
                    G=1000,
-                   k=2)
+                   tour_k=2)
 optimizer.opt()
