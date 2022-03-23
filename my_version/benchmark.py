@@ -11,13 +11,16 @@ import pandas as pd
 
 class sch:
     def __init__(self):
-        self.XMAX = 55
-        self.XMIN = -55
+        self.ub = [55]
+        self.lb = [-55]
         self.D = 1
         self.M = 2
         self.min_problem = True
 
     def fitness(self, X):
+        if isinstance(X, pd.Series):
+            X = pd.DataFrame(X).T
+
         X['F'] = 0
         X = X.to_dict('records')
         for idx, val in enumerate(X):

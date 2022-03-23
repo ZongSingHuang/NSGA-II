@@ -8,6 +8,8 @@ Created on Mon Mar 21 17:01:54 2022
 import numpy as np
 import pandas as pd
 
+import time
+
 
 class NSGAII:
     def __init__(self,
@@ -16,6 +18,8 @@ class NSGAII:
                  G=1000,
                  tour_k=2,
                  tour_prob=0.9,
+                 cross_param=2,
+                 mutation_param=5,
                  min_problem=True):
         self.P = P
         self.G = G
@@ -25,37 +29,41 @@ class NSGAII:
         self.D = benchmark.D
         self.fitness = benchmark.fitness
         self.min_problem = benchmark.min_problem
-        self.XMAX = benchmark.XMAX
-        self.XMIN = benchmark.XMIN
+        self.ub = benchmark.ub
+        self.lb = benchmark.lb
         self.M = benchmark.M
+        self.cross_param = cross_param
+        self.mutation_param = mutation_param
 
         self.X_gbest = np.zeros([self.D])
         self.F_gbest = np.inf
 
     def opt(self):
-        self.X = self.initial_population()
+        st = time.time()
+        self.X = self.initial_population(self.P)
         self.X = self.fitness(self.X)
         self.X, front_set = self.fast_nondominated_sort(self.X)
         self.X = self.calculate_crowding_distance(self.X,
                                                   front_set)
         self.Xc = self.create_children(self.X,
                                        front_set)
+        print(time.time() - st)
         return 0
 
 # %%
-    def initial_population(self):
+    def initial_population(self, P=1):
         X = []
-        # for i in range(self.P):
-        #     x = {'X': np.random.uniform(low=self.XMIN,
-        #                                 high=self.XMAX,
-        #                                 size=self.D)}
-        #     X.append(x)
+        for i in range(P):
+            x = {'X': np.random.uniform(low=self.ub,
+                                        high=self.lb,
+                                        size=self.D)}
+            X.append(x)
         # [-0.414, 0.467, 0.818, 1.735, 3.210, -1.272, -1.508, -1.832, -2.161, -4.105]
         # [0.467, 1.735, 0.818, -0.414, 3.210, -1.272, -1.508, -1.832, -2.161, -4.105]
-        for i in [-0.414, 0.467, 0.818, 1.735, 3.210, -1.272, -1.508, -1.832, -2.161, -4.105]:
-            x = {'X': np.array([i])}
-            X.append(x)
-        self.P = 10
+        # for i in [-0.414, 0.467, 0.818, 1.735, 3.210, -1.272, -1.508, -1.832, -2.161, -4.105]:
+        #     x = {'X': np.array([i])}
+        #     X.append(x)
+        # self.P = 10
         return pd.DataFrame(X)
 
     def tournament_selection(self, X):
@@ -70,10 +78,37 @@ class NSGAII:
         return best
 
     def crossover(self, p1, p2):
-        return 0
+        c = self.initial_population(2)
+        c1 = c.loc[0]
+        c2 = c.loc[1]
+        for gene_idx in range(self.D):
+            u = np.random.uniform()
+            if u <= 0.5:
+                beta = (2 * u) ** (1 / (self.cross_param + 1))
+            else:
+                beta = (2 * (1 - u)) ** (-1 / (self.cross_param + 1))
+
+            gene1 = (p1['X'][gene_idx] + p2['X'][gene_idx]) / 2
+            gene2 = np.abs((p1['X'][gene_idx] - p2['X'][gene_idx]) / 2)
+            c1['X'][gene_idx] = gene1 + beta * gene2
+            c2['X'][gene_idx] = gene1 - beta * gene2
+        return c1, c2
 
     def mutation(self, c1):
-        return 0
+        for gene_idx in range(self.D):
+            u = np.random.uniform()
+            if u < 0.5:
+                delta = (2 * u) ** (1 / (self.mutation_param + 1)) - 1
+            else:
+                delta = 1 - (2 * (1 - u)) ** (1 / (self.mutation_param + 1))
+
+            if u < 0.5:
+                c1['X'][gene_idx] += delta * (c1['X'][gene_idx] - self.lb[gene_idx])
+            else:
+                c1['X'][gene_idx] += delta * (self.ub[gene_idx] - c1['X'][gene_idx])
+
+            c1['X'][gene_idx] = np.clip(c1['X'][gene_idx], self.lb[gene_idx], self.ub[gene_idx])
+        return c1
 
 # %%
     def fast_nondominated_sort(self,
@@ -163,11 +198,13 @@ class NSGAII:
         while len(children) < self.P:
             p1 = self.tournament_selection(X)
             p2 = p1
-            while p1 == p2:
+            while p1.equals(p2):
                 p2 = self.tournament_selection(X)
             c1, c2 = self.crossover(p1, p2)
             c1 = self.mutation(c1)
             c2 = self.mutation(c2)
-            c1_f = self.fitness(c1)
-            c2_f = self.fitness(c2)
-        return 0
+            c1 = self.fitness(c1)
+            c2 = self.fitness(c2)
+            children = pd.concat([children, c1])
+            children = pd.concat([children, c2])
+        return children
