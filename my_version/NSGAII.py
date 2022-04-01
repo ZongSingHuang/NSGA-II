@@ -40,7 +40,6 @@ class NSGAII:
         self.X_gbest = None
         self.F_gbest = None
 
-    @profile
     def opt(self):
         # 建立 P 條染色體作為父代，並計算各自的適應值
         parent = self.initial_population()

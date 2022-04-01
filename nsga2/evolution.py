@@ -13,7 +13,6 @@ class Evolution:
         self.on_generation_finished = []
         self.num_of_individuals = num_of_individuals
 
-    @profile
     def evolve(self):
         # 建立 P 條染色體作為父代，並計算各自的適應值
         self.population = self.utils.create_initial_population()
@@ -38,12 +37,9 @@ class Evolution:
             # 菁英策略，逐批取的群，同時計算擁擠度，直到把容器塞滿或者快滿
             front_num = 0
             while len(new_population) + len(self.population.fronts[front_num]) <= self.num_of_individuals:
-                print(f'現在 new_population 的長度 {len(new_population)}')
-                print(f'第 {front_num} 群 的長度 {len(self.population.fronts[front_num])}')
                 self.utils.calculate_crowding_distance(self.population.fronts[front_num])
                 new_population.extend(self.population.fronts[front_num])
                 front_num += 1
-                print(f'更新後 new_population 的長度 {len(new_population)}')
             # 計算 父代 + 子代 front_num + 1 群的擁擠度
             self.utils.calculate_crowding_distance(self.population.fronts[front_num])
             # 對 父代 + 子代 front_num + 1 群的染色體依擁擠度作排序
