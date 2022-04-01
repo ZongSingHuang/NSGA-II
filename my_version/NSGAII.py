@@ -5,10 +5,11 @@ Created on Mon Mar 21 17:01:54 2022
 @author: ZongSing_NB2
 """
 
+import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 
-import time
+from chromosome import Chromosome
 
 
 class NSGAII:
@@ -27,7 +28,7 @@ class NSGAII:
         self.tour_prob = tour_prob
         self.benchmark = benchmark
         self.D = benchmark.D
-        self.fitness = benchmark.fitness
+        self.calculate_fitness = benchmark.fitness
         self.min_problem = benchmark.min_problem
         self.ub = benchmark.ub
         self.lb = benchmark.lb
@@ -35,176 +36,263 @@ class NSGAII:
         self.cross_param = cross_param
         self.mutation_param = mutation_param
 
-        self.X_gbest = np.zeros([self.D])
-        self.F_gbest = np.inf
+        self.X_gbest = None
+        self.F_gbest = None
 
     def opt(self):
-        st = time.time()
-        self.X = self.initial_population(self.P)
-        self.X = self.fitness(self.X)
-        self.X, front_set = self.fast_nondominated_sort(self.X)
-        self.X = self.calculate_crowding_distance(self.X,
-                                                  front_set)
-        self.Xc = self.create_children(self.X,
-                                       front_set)
-        print(time.time() - st)
-        return 0
+        # 建立 P 條染色體作為父代，並計算各自的適應值
+        parent = self.initial_population()
 
-# %%
-    def initial_population(self, P=1):
-        X = []
-        for i in range(P):
-            x = {'X': np.random.uniform(low=self.ub,
-                                        high=self.lb,
-                                        size=self.D)}
-            X.append(x)
-        # [-0.414, 0.467, 0.818, 1.735, 3.210, -1.272, -1.508, -1.832, -2.161, -4.105]
-        # [0.467, 1.735, 0.818, -0.414, 3.210, -1.272, -1.508, -1.832, -2.161, -4.105]
-        # for i in [-0.414, 0.467, 0.818, 1.735, 3.210, -1.272, -1.508, -1.832, -2.161, -4.105]:
-        #     x = {'X': np.array([i])}
-        #     X.append(x)
-        # self.P = 10
-        return pd.DataFrame(X)
+        # 取得父代染色體的排名，並且分群
+        parent, parent_front_set = self.fast_nondominated_sort(parent)
 
-    def tournament_selection(self, X):
-        participants = np.random.choice(self.P,
-                                        size=self.tour_k,
-                                        replace=False)
-        best = None
-        for _, participant in X.loc[participants].iterrows():
-            r = np.random.uniform()
-            if (best is None) or (self.crowding_operator(participant, best) and (r <= self.tour_prob)):
-                best = participant
-        return best
+        # 計算父代染色體各群的擁擠度
+        for front_idx, front in enumerate(parent_front_set):
+            parent_front_set[front_idx] = self.calculate_crowding_distance(front)
 
-    def crossover(self, p1, p2):
-        c = self.initial_population(2)
-        c1 = c.loc[0]
-        c2 = c.loc[1]
-        for gene_idx in range(self.D):
-            u = np.random.uniform()
-            if u <= 0.5:
-                beta = (2 * u) ** (1 / (self.cross_param + 1))
-            else:
-                beta = (2 * (1 - u)) ** (-1 / (self.cross_param + 1))
+        # 從父代建立子代 : 選擇 -> 交配 -> 突變
+        children = self.create_children(parent)
 
-            gene1 = (p1['X'][gene_idx] + p2['X'][gene_idx]) / 2
-            gene2 = np.abs((p1['X'][gene_idx] - p2['X'][gene_idx]) / 2)
-            c1['X'][gene_idx] = gene1 + beta * gene2
-            c2['X'][gene_idx] = gene1 - beta * gene2
-        return c1, c2
+        # 用來放家族用的
+        returned_family_front_set = None
 
-    def mutation(self, c1):
-        for gene_idx in range(self.D):
-            u = np.random.uniform()
-            if u < 0.5:
-                delta = (2 * u) ** (1 / (self.mutation_param + 1)) - 1
-            else:
-                delta = 1 - (2 * (1 - u)) ** (1 / (self.mutation_param + 1))
+        # 開始迭代
+        for g in range(self.G):
+            # 父代與子代合併
+            family = parent + children
 
-            if u < 0.5:
-                c1['X'][gene_idx] += delta * (c1['X'][gene_idx] - self.lb[gene_idx])
-            else:
-                c1['X'][gene_idx] += delta * (self.ub[gene_idx] - c1['X'][gene_idx])
+            # 取得家族染色體的排名，並且分群
+            family, family_front_set = self.fast_nondominated_sort(family)
 
-            c1['X'][gene_idx] = np.clip(c1['X'][gene_idx], self.lb[gene_idx], self.ub[gene_idx])
-        return c1
+            # 建立空的容器
+            parent_new = []
 
-# %%
+            # 菁英策略，逐批取的群，同時計算擁擠度，直到把容器塞滿或者快滿
+            front_idx = 0
+            while len(parent_new) + len(family_front_set[front_idx]) <= self.P:
+                # 計算家族第 front_idx 群染色體的擁擠度
+                self.calculate_crowding_distance(family_front_set[front_idx])
+                # 把家族第 front_idx 群染色體放入新父代
+                parent_new = parent_new + family_front_set[front_idx]
+                front_idx += 1
+
+            # 計算家族 front_idx + 1 群的擁擠度
+            family_front_set[front_idx] = self.calculate_crowding_distance(family_front_set[front_idx])
+
+            # 對家族 front_idx + 1 群的染色體依擁擠度作排序
+            family_front_set[front_idx].sort(key=lambda chromosome: chromosome.crowding_distance, reverse=True)
+
+            # 若容器還沒滿，則用家族 front_idx + 1 群的染色體充數
+            parent_new = parent_new + family_front_set[front_idx][0:self.P-len(parent_new)]
+
+            # 把家族備份起來
+            returned_family_front_set = family_front_set
+
+            # 父代被新父代取代
+            parent = parent_new
+
+            # 取得新父代染色體的排名，並且分群
+            parent, parent_front_set = self.fast_nondominated_sort(parent)
+
+            # 計算新父代染色體各群的擁擠度
+            for front_idx, front in enumerate(parent_front_set):
+                parent_front_set[front_idx] = self.calculate_crowding_distance(front)
+
+            # 從父代建立子代 : 選擇 -> 交配 -> 突變
+            children = self.create_children(parent)
+
+        # 從家族取得最佳解
+        self.get_gbest(returned_family_front_set[0])
+
+# %% 產生初始解
+    def initial_population(self):
+        parent = [self.create_chromosome() for i in range(self.P)]
+        # parent[0].feature = np.array([200, 90000])
+        # parent[1].feature = np.array([190, 100000])
+        # parent[2].feature = np.array([180, 65000])
+        # parent[3].feature = np.array([170, 75000])
+        # parent[4].feature = np.array([160, 80000])
+        # parent[5].feature = np.array([150, 40000])
+        # parent[6].feature = np.array([145, 44000])
+        # parent[7].feature = np.array([140, 47000])
+        # parent[8].feature = np.array([135, 49000])
+        # parent[9].feature = np.array([130, 50000])
+        # parent[0].fitness = np.array([200, 90000])
+        # parent[1].fitness = np.array([190, 100000])
+        # parent[2].fitness = np.array([180, 65000])
+        # parent[3].fitness = np.array([170, 75000])
+        # parent[4].fitness = np.array([160, 80000])
+        # parent[5].fitness = np.array([150, 40000])
+        # parent[6].fitness = np.array([145, 44000])
+        # parent[7].fitness = np.array([140, 47000])
+        # parent[8].fitness = np.array([135, 49000])
+        # parent[9].fitness = np.array([130, 50000])
+        return parent
+
+    def create_chromosome(self):
+        chromosome = Chromosome()
+        chromosome.feature = np.random.uniform(low=self.lb, high=self.ub)
+        chromosome.fitness = self.calculate_fitness(chromosome)
+        return chromosome
+
+# %% 快速非支配排序
     def fast_nondominated_sort(self,
-                               X):
+                               population):
         front_set = [[]]
-        F = X['F'].to_dict()
-        X['dominat_solutions'] = float('nan')
-        X['dominated_counter'] = float('nan')
-        X['rank'] = float('nan')
-        X = X.to_dict('records')
-        for x1_idx, x1_f in F.items():
-            dominat_solutions = []
-            dominated_counter = 0
-            for x2_idx, x2_f in F.items():
-                if self.dominates(x1_f, x2_f):
-                    dominat_solutions.append(x2_idx)
-                elif self.dominates(x2_f, x1_f):
-                    dominated_counter += 1
+        for master in population:
+            master.dominated_counter = 0
+            master.dominat_solutions = []
+            for slave in population:
+                if self.dominates(master, slave):
+                    master.dominat_solutions.append(slave)
+                elif self.dominates(slave, master):
+                    master.dominated_counter += 1
                 else:
                     pass
-            X[x1_idx]['dominat_solutions'] = dominat_solutions
-            X[x1_idx]['dominated_counter'] = dominated_counter
 
-            if not dominated_counter:
-                X[x1_idx]['rank'] = 0
-                front_set[0].append(x1_idx)
+            if not master.dominated_counter:
+                master.rank = 0
+                front_set[0].append(master)
 
         i = 0
         while len(front_set[i]):
             front = []
-            for master_idx in front_set[i]:
-                for slave_idx in X[master_idx]['dominat_solutions']:
-                    X[slave_idx]['dominated_counter'] -= 1
-                    if not X[slave_idx]['dominated_counter']:
-                        X[slave_idx]['rank'] = i + 1
-                        front.append(slave_idx)
+            for master in front_set[i]:
+                for slave in master.dominat_solutions:
+                    slave.dominated_counter -= 1
+                    if not slave.dominated_counter:
+                        slave.rank = i + 1
+                        front.append(slave)
             i = i + 1
             front_set.append(front)
 
-        return pd.DataFrame(X), front_set
+        return population, front_set
 
     def dominates(self,
-                  x1_f,
-                  x2_f):
+                  p1,
+                  p2):
         if self.min_problem:
-            and_condition = all(x1_f <= x2_f)
-            or_condition = any(x1_f < x2_f)
+            and_condition = all(p1.fitness <= p2.fitness)
+            or_condition = any(p1.fitness < p2.fitness)
         else:
-            and_condition = all(x1_f >= x2_f)
-            or_condition = any(x1_f > x2_f)
+            and_condition = all(p1.fitness >= p2.fitness)
+            or_condition = any(p1.fitness > p2.fitness)
         return and_condition and or_condition
 
-# %%
+# %% 計算擁擠度
     def calculate_crowding_distance(self,
-                                    X,
-                                    front_set):
-        crowding_distance = np.zeros(self.P)
-        for front in front_set:
-            front_size = len(front)
-            if front_size:
-                front_F = pd.DataFrame(X.loc[front, 'F'].tolist(), index=X.loc[front, 'F'].index)
-                for m_idx in range(self.M):
-                    sorted_F = front_F[m_idx].sort_values()
-                    sorted_idx = sorted_F.index
-                    crowding_distance[sorted_idx[0]] = np.inf
-                    crowding_distance[sorted_idx[front_size-1]] = np.inf
-                    m_values = front_F[m_idx]
-                    scale = m_values.max() - m_values.min()
-                    if not scale:
-                        scale = 1
-                    for i in range(1, front_size-1):
-                        crowding_distance[sorted_idx[i]] += (sorted_F.loc[sorted_idx[i+1]] - sorted_F.loc[sorted_idx[i-1]]) / scale
-        self.X['crowding_distance'] = crowding_distance
-        return self.X
+                                    front):
+        front_len = len(front)
+        if front_len:
+            for chromosome in front:
+                chromosome.crowding_distance = 0
+
+            for m_idx in range(self.M):
+                front.sort(key=lambda chromosome: chromosome.fitness[m_idx])
+                front[0].crowding_distance = np.inf
+                front[-1].crowding_distance = np.inf
+                m_fitness = [chromosome.fitness[m_idx] for chromosome in front]
+                scale = max(max(m_fitness) - min(m_fitness), 1)
+                for i in range(1, front_len-1):
+                    front[i].crowding_distance += (front[i+1].fitness[m_idx] - front[i-1].fitness[m_idx]) / scale
+        return front
+
+# %% 產生子代
+    def create_children(self,
+                        parent):
+        children = []
+        while len(children) < self.P:
+            p1 = self.tournament_selection(parent)
+            p2 = p1
+            while p1 == p2:
+                p2 = self.tournament_selection(parent)
+            c1, c2 = self.crossover(p1, p2)
+            self.mutation(c1)
+            self.mutation(c2)
+            c1.fitness = self.calculate_fitness(c1)
+            c2.fitness = self.calculate_fitness(c2)
+            children.append(c1)
+            children.append(c2)
+        return children
+
+# %% 選擇
+    def tournament_selection(self,
+                             parent):
+        participants = np.random.choice(parent,
+                                        size=self.tour_k,
+                                        replace=False)
+        best = None
+        for participant in participants:
+            r = np.random.uniform()
+            if (best is None) or (self.crowding_operator(participant, best) and r <= self.tour_prob):
+                best = participant
+        return best
 
     def crowding_operator(self, participant, best):
-        if (participant['rank'] < best['rank']) or ((participant['rank'] == best['rank']) and (participant['crowding_distance'] > best['crowding_distance'])):
+        if (participant.rank < best.rank) or (participant.rank == best.rank and participant.crowding_distance > best.crowding_distance):
             return True
         else:
             return False
 
-# %%
-    def create_children(self,
-                        X,
-                        front_set):
-        children = pd.DataFrame()
-        while len(children) < self.P:
-            p1 = self.tournament_selection(X)
-            p2 = p1
-            while p1.equals(p2):
-                p2 = self.tournament_selection(X)
-            c1, c2 = self.crossover(p1, p2)
-            c1 = self.mutation(c1)
-            c2 = self.mutation(c2)
-            c1 = self.fitness(c1)
-            c2 = self.fitness(c2)
-            children = pd.concat([children, c1])
-            children = pd.concat([children, c2])
-        return children
+# %% 交配
+    def crossover(self,
+                  p1,
+                  p2):
+        c1 = self.create_chromosome()
+        c2 = self.create_chromosome()
+        for gene_idx in range(self.D):
+            beta = self.get_beta()
+            gene1 = (p1.feature[gene_idx] + p2.feature[gene_idx]) / 2
+            gene2 = np.abs((p1.feature[gene_idx] - p2.feature[gene_idx]) / 2)
+            c1.feature[gene_idx] = gene1 + beta * gene2
+            c2.feature[gene_idx] = gene1 - beta * gene2
+        return c1, c2
+
+    def get_beta(self):
+        u = np.random.uniform()
+        if u <= 0.5:
+            beta = (2 * u) ** (1 / (self.cross_param + 1))
+        else:
+            beta = (2 * (1 - u)) ** (-1 / (self.cross_param + 1))
+        return beta
+
+# %% 突變
+    def mutation(self,
+                 c1):
+        for gene_idx in range(self.D):
+            u, delta = self.get_delta()
+
+            if u < 0.5:
+                c1.feature[gene_idx] += delta * (c1.feature[gene_idx] - self.lb[gene_idx])
+            else:
+                c1.feature[gene_idx] += delta * (self.ub[gene_idx] - c1.feature[gene_idx])
+
+            c1.feature[gene_idx] = np.clip(c1.feature[gene_idx], self.lb[gene_idx], self.ub[gene_idx])
+        return c1
+
+    def get_delta(self):
+        u = np.random.uniform()
+        if u < 0.5:
+            delta = (2 * u) ** (1 / (self.mutation_param + 1)) - 1
+        else:
+            delta = 1 - (2 * (1 - u)) ** (1 / (self.mutation_param + 1))
+        return u, delta
+
+# %% 取得最佳解
+    def get_gbest(self,
+                  front):
+        self.X_gbest = np.array([chromosome.feature for chromosome in front])
+        self.F_gbest = np.array([chromosome.fitness for chromosome in front])
+
+# %% 畫圖
+    def plot(self,
+             title=None,
+             xlabel=None,
+             ylabel=None):
+        if self.F_gbest is not None:
+            plt.figure()
+            plt.title(title)
+            plt.scatter(self.F_gbest[:, 0], self.F_gbest[:, 1])
+            plt.xlabel(xlabel)
+            plt.ylabel(ylabel)
+            plt.grid()

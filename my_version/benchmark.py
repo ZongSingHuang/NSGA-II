@@ -6,10 +6,9 @@ Created on Mon Mar 21 16:53:30 2022
 """
 
 import numpy as np
-import pandas as pd
 
 
-class sch:
+class sch():
     def __init__(self):
         self.ub = [55]
         self.lb = [-55]
@@ -17,15 +16,25 @@ class sch:
         self.M = 2
         self.min_problem = True
 
-    def fitness(self, X):
-        if isinstance(X, pd.Series):
-            X = pd.DataFrame(X).T
+    def fitness(self, chromosome):
+        f1 = chromosome.feature[0] ** 2
+        f2 = (chromosome.feature[0] - 2) ** 2
+        fitness = np.array([f1, f2])
 
-        X['F'] = 0
-        X = X.to_dict('records')
-        for idx, val in enumerate(X):
-            f1 = val['X'] ** 2
-            f2 = (val['X'] - 2) ** 2
-            X[idx]['F'] = np.hstack([f1, f2])
+        return fitness
 
-        return pd.DataFrame(X)
+
+class test():
+    def __init__(self):
+        self.ub = [200, 100000]
+        self.lb = [100, 25000]
+        self.D = 2
+        self.M = 2
+        self.min_problem = False
+
+    def fitness(self, chromosome):
+        f1 = chromosome.feature[0]
+        f2 = chromosome.feature[1]
+        fitness = np.array([f1, f2])
+
+        return fitness
