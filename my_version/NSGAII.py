@@ -5,9 +5,10 @@ Created on Mon Mar 21 17:01:54 2022
 @author: ZongSing_NB2
 """
 
+import time
+
 import matplotlib.pyplot as plt
 import numpy as np
-import pandas as pd
 
 from chromosome import Chromosome
 
@@ -39,6 +40,7 @@ class NSGAII:
         self.X_gbest = None
         self.F_gbest = None
 
+    @profile
     def opt(self):
         # 建立 P 條染色體作為父代，並計算各自的適應值
         parent = self.initial_population()
@@ -58,6 +60,8 @@ class NSGAII:
 
         # 開始迭代
         for g in range(self.G):
+            st = time.time()
+
             # 父代與子代合併
             family = parent + children
 
@@ -101,32 +105,14 @@ class NSGAII:
             # 從父代建立子代 : 選擇 -> 交配 -> 突變
             children = self.create_children(parent)
 
+            print(f'Iteration : {g}, Cost : {(time.time() - st):.2f}')
+
         # 從家族取得最佳解
         self.get_gbest(returned_family_front_set[0])
 
 # %% 產生初始解
     def initial_population(self):
         parent = [self.create_chromosome() for i in range(self.P)]
-        # parent[0].feature = np.array([200, 90000])
-        # parent[1].feature = np.array([190, 100000])
-        # parent[2].feature = np.array([180, 65000])
-        # parent[3].feature = np.array([170, 75000])
-        # parent[4].feature = np.array([160, 80000])
-        # parent[5].feature = np.array([150, 40000])
-        # parent[6].feature = np.array([145, 44000])
-        # parent[7].feature = np.array([140, 47000])
-        # parent[8].feature = np.array([135, 49000])
-        # parent[9].feature = np.array([130, 50000])
-        # parent[0].fitness = np.array([200, 90000])
-        # parent[1].fitness = np.array([190, 100000])
-        # parent[2].fitness = np.array([180, 65000])
-        # parent[3].fitness = np.array([170, 75000])
-        # parent[4].fitness = np.array([160, 80000])
-        # parent[5].fitness = np.array([150, 40000])
-        # parent[6].fitness = np.array([145, 44000])
-        # parent[7].fitness = np.array([140, 47000])
-        # parent[8].fitness = np.array([135, 49000])
-        # parent[9].fitness = np.array([130, 50000])
         return parent
 
     def create_chromosome(self):

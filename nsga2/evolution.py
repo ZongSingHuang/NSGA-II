@@ -1,15 +1,19 @@
+import time
+
 from nsga2.utils import NSGA2Utils
 from nsga2.population import Population
 
+
 class Evolution:
 
-    def __init__(self, problem, num_of_generations=1000, num_of_individuals=100, num_of_tour_particips=2, tournament_prob=0.9, crossover_param=2, mutation_param=5):
+    def __init__(self, problem, num_of_generations=1, num_of_individuals=10, num_of_tour_particips=2, tournament_prob=0.9, crossover_param=2, mutation_param=5):
         self.utils = NSGA2Utils(problem, num_of_individuals, num_of_tour_particips, tournament_prob, crossover_param, mutation_param)
         self.population = None
         self.num_of_generations = num_of_generations
         self.on_generation_finished = []
         self.num_of_individuals = num_of_individuals
 
+    @profile
     def evolve(self):
         # 建立 P 條染色體作為父代，並計算各自的適應值
         self.population = self.utils.create_initial_population()
@@ -24,6 +28,7 @@ class Evolution:
         returned_population = None
         # 開始迭代
         for i in range(self.num_of_generations):
+            st = time.time()
             # 父代與子代合併
             self.population.extend(children)
             # 取得父代 + 子代染色體的排名，並且分群
@@ -56,4 +61,5 @@ class Evolution:
                 self.utils.calculate_crowding_distance(front)
             # 建立子代 : 選擇 -> 交配 -> 突變
             children = self.utils.create_children(self.population)
+            print(f'Iteration : {i}, Cost : {(time.time() - st):.2f}')
         return returned_population.fronts[0]
