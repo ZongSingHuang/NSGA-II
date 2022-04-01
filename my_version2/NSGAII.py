@@ -40,29 +40,47 @@ class NSGAII:
         self.F_gbest = np.inf
 
     def opt(self):
+        # 建立 P 條染色體作為父代，並計算各自的適應值
         self.initial_population()
+        # 取得父代染色體的排名，並且分群
         front_set = self.fast_nondominated_sort()
+        # 計算父代染色體各群的擁擠度
         for front in front_set:
             self.calculate_crowding_distance(front)
+        # 從父代建立子代 : 選擇 -> 交配 -> 突變
         children = self.create_children()
+        # 用來放 父代 + 子代 用的
         returned_population = None
+        # 開始迭代
         for g in range(self.G):
+            # 父代與子代合併
             self.X = self.X + children
+            # 取得父代 + 子代染色體的排名，並且分群
             front_set = self.fast_nondominated_sort()
-            new_population = []
-            front_num = 0
-            while len(new_population) + len(front_set[front_num]) <= self.P:
-                self.calculate_crowding_distance(front_set[front_num])
-                new_population = new_population + front_set[front_num]
-                front_num += 1
-            self.calculate_crowding_distance(front_set[front_num])
-            front_set[front_num].sort(key=lambda chromosome: chromosome.crowding_distance, reverse=True)
-            new_population = new_population + front_set[front_num][0:self.P-len(new_population)]
+            # 建立空的容器
+            self.X_new = []
+            # 菁英策略，逐批取的群，同時計算擁擠度，直到把容器塞滿或者快滿
+            front_idx = 0
+            while len(self.X_new) + len(front_set[front_idx]) <= self.P:
+                self.calculate_crowding_distance(front_set[front_idx])
+                self.X_new = self.X_new + front_set[front_idx]
+                front_idx += 1
+            # 計算 父代 + 子代 front_num + 1 群的擁擠度
+            self.calculate_crowding_distance(front_set[front_idx])
+            # 對 父代 + 子代 front_num + 1 群的染色體依擁擠度作排序
+            front_set[front_idx].sort(key=lambda chromosome: chromosome.crowding_distance, reverse=True)
+            # 若容器還沒滿，則用父代 + 子代 front_num + 1 群的染色體充數
+            self.X_new = self.X_new + front_set[front_idx][0:self.P-len(self.X_new)]
+            # 把父代 + 子代備份起來
             returned_population = self.X
-            self.X = new_population
+            # 容器作為新父代
+            self.X = self.X_new
+            # 取得新父代染色體的排名，並且分群
             front_set = self.fast_nondominated_sort()
+            # 計算新父代染色體各群的擁擠度
             for front in front_set:
                 self.calculate_crowding_distance(front)
+            # 建立子代 : 選擇 -> 交配 -> 突變
             children = self.create_children()
         return returned_population.fronts[0]
 

@@ -15,10 +15,10 @@ class Evolution:
         self.population = self.utils.create_initial_population()
         # 取得父代染色體的排名，並且分群
         self.utils.fast_nondominated_sort(self.population)
-        # 計算父代染色體各群ㄋ的擁擠度
+        # 計算父代染色體各群的擁擠度
         for front in self.population.fronts:
             self.utils.calculate_crowding_distance(front)
-        # 建立子代 : 選擇 -> 交配 -> 突變
+        # 從父代建立子代 : 選擇 -> 交配 -> 突變
         children = self.utils.create_children(self.population)
         # 用來放 父代 + 子代 用的
         returned_population = None
