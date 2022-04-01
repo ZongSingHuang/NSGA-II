@@ -41,72 +41,73 @@ class NSGAII:
 
     def opt(self):
         # 建立 P 條染色體作為父代，並計算各自的適應值
-        self.initial_population()
+        parent = self.initial_population()
         # 取得父代染色體的排名，並且分群
-        front_set = self.fast_nondominated_sort()
+        parent, parent_front_set = self.fast_nondominated_sort(parent)
         # 計算父代染色體各群的擁擠度
-        for front in front_set:
-            self.calculate_crowding_distance(front)
+        for front_idx, front in enumerate(parent_front_set):
+            parent_front_set[front_idx] = self.calculate_crowding_distance(front)
         # 從父代建立子代 : 選擇 -> 交配 -> 突變
-        children = self.create_children()
+        children = self.create_children(parent)
         # 用來放 父代 + 子代 用的
-        returned_population = None
+        returned_family_front_set = None
         # 開始迭代
         for g in range(self.G):
             # 父代與子代合併
-            self.X = self.X + children
+            family = parent + children
             # 取得父代 + 子代染色體的排名，並且分群
-            front_set = self.fast_nondominated_sort()
+            family, family_front_set = self.fast_nondominated_sort(family)
             # 建立空的容器
-            self.X_new = []
+            parent_new = []
             # 菁英策略，逐批取的群，同時計算擁擠度，直到把容器塞滿或者快滿
             front_idx = 0
-            while len(self.X_new) + len(front_set[front_idx]) <= self.P:
-                self.calculate_crowding_distance(front_set[front_idx])
-                self.X_new = self.X_new + front_set[front_idx]
+            while len(parent_new) + len(family_front_set[front_idx]) <= self.P:
+                self.calculate_crowding_distance(family_front_set[front_idx])
+                parent_new = parent_new + family_front_set[front_idx]
                 front_idx += 1
             # 計算 父代 + 子代 front_num + 1 群的擁擠度
-            self.calculate_crowding_distance(front_set[front_idx])
+            family_front_set[front_idx] = self.calculate_crowding_distance(family_front_set[front_idx])
             # 對 父代 + 子代 front_num + 1 群的染色體依擁擠度作排序
-            front_set[front_idx].sort(key=lambda chromosome: chromosome.crowding_distance, reverse=True)
+            family_front_set[front_idx].sort(key=lambda chromosome: chromosome.crowding_distance, reverse=True)
             # 若容器還沒滿，則用父代 + 子代 front_num + 1 群的染色體充數
-            self.X_new = self.X_new + front_set[front_idx][0:self.P-len(self.X_new)]
+            parent_new = parent_new + family_front_set[front_idx][0:self.P-len(parent_new)]
             # 把父代 + 子代備份起來
-            returned_population = self.X
+            returned_family_front_set = family_front_set
             # 容器作為新父代
-            self.X = self.X_new
+            parent = parent_new
             # 取得新父代染色體的排名，並且分群
-            front_set = self.fast_nondominated_sort()
+            parent, parent_front_set = self.fast_nondominated_sort(parent)
             # 計算新父代染色體各群的擁擠度
-            for front in front_set:
-                self.calculate_crowding_distance(front)
+            for front_idx, front in enumerate(parent_front_set):
+                parent_front_set[front_idx] = self.calculate_crowding_distance(front)
             # 建立子代 : 選擇 -> 交配 -> 突變
-            children = self.create_children()
-        return returned_population.fronts[0]
+            children = self.create_children(parent)
+        return returned_family_front_set[0]
 
 # %% 產生初始解
     def initial_population(self):
-        self.X = [self.create_chromosome() for i in range(self.P)]
-        self.X[0].feature = np.array([200, 90000])
-        self.X[1].feature = np.array([190, 100000])
-        self.X[2].feature = np.array([180, 65000])
-        self.X[3].feature = np.array([170, 75000])
-        self.X[4].feature = np.array([160, 80000])
-        self.X[5].feature = np.array([150, 40000])
-        self.X[6].feature = np.array([145, 44000])
-        self.X[7].feature = np.array([140, 47000])
-        self.X[8].feature = np.array([135, 49000])
-        self.X[9].feature = np.array([130, 50000])
-        self.X[0].fitness = np.array([200, 90000])
-        self.X[1].fitness = np.array([190, 100000])
-        self.X[2].fitness = np.array([180, 65000])
-        self.X[3].fitness = np.array([170, 75000])
-        self.X[4].fitness = np.array([160, 80000])
-        self.X[5].fitness = np.array([150, 40000])
-        self.X[6].fitness = np.array([145, 44000])
-        self.X[7].fitness = np.array([140, 47000])
-        self.X[8].fitness = np.array([135, 49000])
-        self.X[9].fitness = np.array([130, 50000])
+        parent = [self.create_chromosome() for i in range(self.P)]
+        parent[0].feature = np.array([200, 90000])
+        parent[1].feature = np.array([190, 100000])
+        parent[2].feature = np.array([180, 65000])
+        parent[3].feature = np.array([170, 75000])
+        parent[4].feature = np.array([160, 80000])
+        parent[5].feature = np.array([150, 40000])
+        parent[6].feature = np.array([145, 44000])
+        parent[7].feature = np.array([140, 47000])
+        parent[8].feature = np.array([135, 49000])
+        parent[9].feature = np.array([130, 50000])
+        parent[0].fitness = np.array([200, 90000])
+        parent[1].fitness = np.array([190, 100000])
+        parent[2].fitness = np.array([180, 65000])
+        parent[3].fitness = np.array([170, 75000])
+        parent[4].fitness = np.array([160, 80000])
+        parent[5].fitness = np.array([150, 40000])
+        parent[6].fitness = np.array([145, 44000])
+        parent[7].fitness = np.array([140, 47000])
+        parent[8].fitness = np.array([135, 49000])
+        parent[9].fitness = np.array([130, 50000])
+        return parent
 
     def create_chromosome(self):
         chromosome = Chromosome()
@@ -115,12 +116,12 @@ class NSGAII:
         return chromosome
 
 # %% 快速非支配排序
-    def fast_nondominated_sort(self):
+    def fast_nondominated_sort(self, population):
         front_set = [[]]
-        for master in self.X:
+        for master in population:
             master.dominated_counter = 0
             master.dominat_solutions = []
-            for slave in self.X:
+            for slave in population:
                 if self.dominates(master, slave):
                     master.dominat_solutions.append(slave)
                 elif self.dominates(slave, master):
@@ -144,7 +145,7 @@ class NSGAII:
             i = i + 1
             front_set.append(front)
 
-        return front_set
+        return population, front_set
 
     def dominates(self,
                   p1,
@@ -173,15 +174,16 @@ class NSGAII:
                 scale = max(max(m_fitness) - min(m_fitness), 1)
                 for i in range(1, front_len-1):
                     front[i].crowding_distance += (front[i+1].fitness[m_idx] - front[i-1].fitness[m_idx]) / scale
+        return front
 
 # %% 產生子代
-    def create_children(self):
+    def create_children(self, parent):
         children = []
         while len(children) < self.P:
-            p1 = self.tournament_selection()
+            p1 = self.tournament_selection(parent)
             p2 = p1
             while p1 == p2:
-                p2 = self.tournament_selection()
+                p2 = self.tournament_selection(parent)
             c1, c2 = self.crossover(p1, p2)
             self.mutation(c1)
             self.mutation(c2)
@@ -192,8 +194,8 @@ class NSGAII:
         return children
 
 # %% 選擇
-    def tournament_selection(self):
-        participants = np.random.choice(self.X,
+    def tournament_selection(self, parent):
+        participants = np.random.choice(parent,
                                         size=self.tour_k,
                                         replace=False)
         best = None
