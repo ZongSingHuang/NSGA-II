@@ -19,7 +19,7 @@ class sch():
     def fitness(self, chromosome):
         f1 = chromosome.feature[0] ** 2
         f2 = (chromosome.feature[0] - 2) ** 2
-        fitness = np.array([f1, f2])
+        fitness = [f1, f2]
 
         return fitness
 
@@ -35,6 +35,6 @@ class test():
     def fitness(self, chromosome):
         f1 = chromosome.feature[0]
         f2 = chromosome.feature[1]
-        fitness = np.array([f1, f2])
+        fitness = [f1, f2]
 
         return fitness

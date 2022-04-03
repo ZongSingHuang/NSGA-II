@@ -5,6 +5,7 @@ Created on Mon Mar 21 17:01:54 2022
 @author: ZongSing_NB2
 """
 
+import random
 import time
 
 import matplotlib.pyplot as plt
@@ -115,8 +116,8 @@ class NSGAII:
         return parent
 
     def create_chromosome(self):
-        chromosome = Chromosome()
-        chromosome.feature = np.random.uniform(low=self.lb, high=self.ub)
+        chromosome = Chromosome(self.min_problem)
+        chromosome.feature = [random.uniform(i, j) for i, j in zip(self.lb, self.ub)]
         chromosome.fitness = self.calculate_fitness(chromosome)
         return chromosome
 
@@ -128,9 +129,9 @@ class NSGAII:
             master.dominated_counter = 0
             master.dominat_solutions = []
             for slave in population:
-                if self.dominates(master, slave):
+                if master.dominates(slave):
                     master.dominat_solutions.append(slave)
-                elif self.dominates(slave, master):
+                elif slave.dominates(master):
                     master.dominated_counter += 1
                 else:
                     pass
@@ -152,17 +153,6 @@ class NSGAII:
             front_set.append(front)
 
         return population, front_set
-
-    def dominates(self,
-                  p1,
-                  p2):
-        if self.min_problem:
-            and_condition = all(p1.fitness <= p2.fitness)
-            or_condition = any(p1.fitness < p2.fitness)
-        else:
-            and_condition = all(p1.fitness >= p2.fitness)
-            or_condition = any(p1.fitness > p2.fitness)
-        return and_condition and or_condition
 
 # %% 計算擁擠度
     def calculate_crowding_distance(self,
@@ -203,12 +193,11 @@ class NSGAII:
 # %% 選擇
     def tournament_selection(self,
                              parent):
-        participants = np.random.choice(parent,
-                                        size=self.tour_k,
-                                        replace=False)
+        participants = random.sample(parent,
+                                     k=self.tour_k)
         best = None
         for participant in participants:
-            r = np.random.uniform()
+            r = random.random()
             if (best is None) or (self.crowding_operator(participant, best) and r <= self.tour_prob):
                 best = participant
         return best
@@ -228,13 +217,13 @@ class NSGAII:
         for gene_idx in range(self.D):
             beta = self.get_beta()
             gene1 = (p1.feature[gene_idx] + p2.feature[gene_idx]) / 2
-            gene2 = np.abs((p1.feature[gene_idx] - p2.feature[gene_idx]) / 2)
+            gene2 = abs((p1.feature[gene_idx] - p2.feature[gene_idx]) / 2)
             c1.feature[gene_idx] = gene1 + beta * gene2
             c2.feature[gene_idx] = gene1 - beta * gene2
         return c1, c2
 
     def get_beta(self):
-        u = np.random.uniform()
+        u = random.random()
         if u <= 0.5:
             beta = (2 * u) ** (1 / (self.cross_param + 1))
         else:
@@ -252,11 +241,14 @@ class NSGAII:
             else:
                 c1.feature[gene_idx] += delta * (self.ub[gene_idx] - c1.feature[gene_idx])
 
-            c1.feature[gene_idx] = np.clip(c1.feature[gene_idx], self.lb[gene_idx], self.ub[gene_idx])
+            if c1.feature[gene_idx] > self.ub[gene_idx]:
+                c1.feature[gene_idx] = self.ub[gene_idx]
+            if c1.feature[gene_idx] < self.lb[gene_idx]:
+                c1.feature[gene_idx] = self.lb[gene_idx]
         return c1
 
     def get_delta(self):
-        u = np.random.uniform()
+        u = random.random()
         if u < 0.5:
             delta = (2 * u) ** (1 / (self.mutation_param + 1)) - 1
         else:
