@@ -7,6 +7,7 @@ Created on Mon Mar 21 17:01:54 2022
 
 import random
 import time
+from operator import itemgetter, attrgetter
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -84,7 +85,8 @@ class NSGAII:
             family_front_set[front_idx] = self.calculate_crowding_distance(family_front_set[front_idx])
 
             # 對家族 front_idx + 1 群的染色體依擁擠度作排序
-            family_front_set[front_idx].sort(key=lambda chromosome: chromosome.crowding_distance, reverse=True)
+            # family_front_set[front_idx].sort(key=lambda chromosome: chromosome.crowding_distance, reverse=True)
+            family_front_set[front_idx].sort(key=attrgetter('crowding_distance'), reverse=True)
 
             # 若容器還沒滿，則用家族 front_idx + 1 群的染色體充數
             parent_new = parent_new + family_front_set[front_idx][0:self.P-len(parent_new)]
