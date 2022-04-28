@@ -169,7 +169,9 @@ class NSGAII:
                 front[0].crowding_distance = np.inf
                 front[-1].crowding_distance = np.inf
                 m_fitness = [chromosome.fitness[m_idx] for chromosome in front]
-                scale = max(max(m_fitness) - min(m_fitness), 1)
+                scale = max(m_fitness) - min(m_fitness)
+                if not scale:
+                    scale = 1
                 for i in range(1, front_len-1):
                     front[i].crowding_distance += (front[i+1].fitness[m_idx] - front[i-1].fitness[m_idx]) / scale
         return front
